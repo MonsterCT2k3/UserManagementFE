@@ -1,0 +1,25 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+
+<div class="page">
+    @if (!IsLoginOrRegisterPage())
+    {
+        <div class="sidebar">
+            <NavMenu />
+        </div>
+    }
+
+    <main>
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+@code {
+    private bool IsLoginOrRegisterPage()
+    {
+        var relativePath = Navigation.ToBaseRelativePath(Navigation.Uri).ToLower();
+        return relativePath == "login" || relativePath == "register";
+    }
+}

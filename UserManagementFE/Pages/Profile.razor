@@ -1,0 +1,189 @@
+﻿@page "/profile"
+@inject UserService UserService
+@inject NavigationManager Navigation
+@using UserManagementFE.Services
+@using UserManagementFE.Models
+@using System.ComponentModel.DataAnnotations
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">Thông Tin Cá Nhân</h3>
+                </div>
+                <div class="card-body">
+                    @if (user != null)
+                    {
+                        <EditForm Model="@user" OnValidSubmit="HandleEditProfile">
+                            <DataAnnotationsValidator />
+                            <div class="row">
+                                <!-- Cột 1 -->
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Tên đăng nhập:</label>
+                                        <InputText class="form-control" @bind-Value="user.Username" disabled />
+                                        <ValidationMessage For="@(() => user.Username)" class="text-danger" />
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Họ tên:</label>
+                                        <InputText class="form-control" @bind-Value="user.HoTen" disabled />
+                                        <ValidationMessage For="@(() => user.HoTen)" class="text-danger" />
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Ngày sinh:</label>
+                                        <InputDate class="form-control" @bind-Value="user.NgaySinh" disabled />
+                                        <ValidationMessage For="@(() => user.NgaySinh)" class="text-danger" />
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Giới tính:</label>
+                                        <InputSelect class="form-control" @bind-Value="user.GioiTinh" disabled>
+                                            <option value="">Chọn giới tính</option>
+                                            <option value="Nam">Nam</option>
+                                            <option value="Nữ">Nữ</option>
+                                            <option value="Khác">Khác</option>
+                                        </InputSelect>
+                                        <ValidationMessage For="@(() => user.GioiTinh)" class="text-danger" />
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Số CCCD:</label>
+                                        <InputText class="form-control" @bind-Value="user.SoCCCD" disabled />
+                                        <ValidationMessage For="@(() => user.SoCCCD)" class="text-danger" />
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Số điện thoại:</label>
+                                        <InputText class="form-control" @bind-Value="user.Sdt" />
+                                        <ValidationMessage For="@(() => user.Sdt)" class="text-danger" />
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Email:</label>
+                                        <InputText class="form-control" @bind-Value="user.Email" />
+                                        <ValidationMessage For="@(() => user.Email)" class="text-danger" />
+                                    </div>
+                                </div>
+                                <!-- Cột 2 -->
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Địa chỉ thường trú:</label>
+                                        <InputText class="form-control" @bind-Value="user.DiaChiThuongTru" disabled />
+                                        <ValidationMessage For="@(() => user.DiaChiThuongTru)" class="text-danger" />
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Địa chỉ tạm trú:</label>
+                                        <InputText class="form-control" @bind-Value="user.DiaChiTamTru" />
+                                        <ValidationMessage For="@(() => user.DiaChiTamTru)" class="text-danger" />
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Nghề nghiệp:</label>
+                                        <InputText class="form-control" @bind-Value="user.NgheNghiep" />
+                                        <ValidationMessage For="@(() => user.NgheNghiep)" class="text-danger" />
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Tình trạng hôn nhân:</label>
+                                        <InputSelect class="form-control" @bind-Value="user.HonNhan">
+                                            <option value="">Chọn tình trạng</option>
+                                            <option value="Độc thân">Độc thân</option>
+                                            <option value="Đã kết hôn">Đã kết hôn</option>
+                                            <option value="Ly hôn">Ly hôn</option>
+                                        </InputSelect>
+                                        <ValidationMessage For="@(() => user.HonNhan)" class="text-danger" />
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Bằng lái xe:</label>
+                                        <InputText class="form-control" @bind-Value="user.BangLaiXe" />
+                                        <ValidationMessage For="@(() => user.BangLaiXe)" class="text-danger" />
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Số tài khoản ngân hàng:</label>
+                                        <InputText class="form-control" @bind-Value="user.SoTkNganHang" />
+                                        <ValidationMessage For="@(() => user.SoTkNganHang)" class="text-danger" />
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 mt-3">Cập Nhật</button>
+                        </EditForm>
+
+                        @if (!string.IsNullOrEmpty(successMessage))
+                        {
+                            <div class="alert alert-success mt-3">@successMessage</div>
+                        }
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger mt-3">@errorMessage</div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Đang tải...</span>
+                            </div>
+                            <p>Đang tải...</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+
+    private User? user;
+    private string successMessage = string.Empty;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            user = new User
+                {
+                    Username = "nguyenvanA",
+                    Password = "MatKhau123!",
+                    HoTen = "Nguyễn Văn A",
+                    NgaySinh = new DateTime(1990, 5, 15),
+                    GioiTinh = "Nam",
+                    SoCCCD = "123456789012",
+                    Sdt = "0909123456",
+                    Email = "nguyenvana@gmail.com",
+                    DiaChiThuongTru = "123 Đường Láng, Đống Đa, Hà Nội",
+                    DiaChiTamTru = "456 Nguyễn Trãi, Thanh Xuân, Hà Nội",
+                    NgheNghiep = "Kỹ sư phần mềm",
+                    HonNhan = "Đã kết hôn",
+                    BangLaiXe = "B2",
+                    SoTkNganHang = "1234567890123456"
+                };
+            // user = await UserService.GetProfileAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            if (ex.Message.Contains("401"))
+            {
+                Navigation.NavigateTo("/login");
+            }
+        }
+    }
+
+    private async Task HandleEditProfile()
+    {
+        if (user == null)
+        {
+            errorMessage = "Không thể cập nhật vì thông tin người dùng không tồn tại.";
+            return;
+        }
+
+        try
+        {
+            var response = await UserService.EditProfileAsync(user);
+            successMessage = response;
+            errorMessage = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            successMessage = string.Empty;
+        }
+    }
+}

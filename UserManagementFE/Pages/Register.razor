@@ -1,0 +1,267 @@
+﻿@page "/register"
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@using UserManagementFE.Services
+@using UserManagementFE.Models
+
+<style>
+    .register-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background: #f8f9fa; /* Nền sáng giống trong hình */
+    }
+
+    .register-card {
+        background: white;
+        padding: 2rem;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 800px; /* Chiều rộng form */
+    }
+
+        .register-card h3 {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            color: #333;
+            font-weight: bold;
+        }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-control {
+        border-radius: 5px;
+        border: 1px solid #ced4da;
+        padding: 0.75rem;
+        width: 100%;
+    }
+
+    .btn-primary {
+        width: 100%;
+        padding: 0.75rem;
+        border-radius: 5px;
+        background-color: #007bff;
+        border: none;
+        font-weight: bold;
+    }
+
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+
+    .alert {
+        margin-top: 1rem;
+    }
+
+    .login-link {
+        text-align: center;
+        margin-top: 1rem;
+    }
+
+        .login-link a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+            .login-link a:hover {
+                text-decoration: underline;
+            }
+</style>
+
+<div class="register-container">
+    <div class="register-card">
+        <h3>Đăng ký</h3>
+        <EditForm Model="@registerModel" OnValidSubmit="HandleRegister">
+            <DataAnnotationsValidator />
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Tên đăng nhập:</label>
+                        <InputText class="form-control" @bind-Value="registerModel.Username" />
+                        <ValidationMessage For="@(() => registerModel.Username)" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Mật khẩu:</label>
+                        <InputText type="password" class="form-control" @bind-Value="registerModel.Password" />
+                        <ValidationMessage For="@(() => registerModel.Password)" />
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Họ tên:</label>
+                        <InputText class="form-control" @bind-Value="registerModel.HoTen" />
+                        <ValidationMessage For="@(() => registerModel.HoTen)" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Ngày sinh:</label>
+                        <InputDate class="form-control" @bind-Value="registerModel.NgaySinh" />
+                        <ValidationMessage For="@(() => registerModel.NgaySinh)" />
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Giới tính:</label>
+                        <InputSelect class="form-control" @bind-Value="registerModel.GioiTinh">
+                            <option value="">Chọn giới tính</option>
+                            <option value="Nam">Nam</option>
+                            <option value="Nữ">Nữ</option>
+                            <option value="Khác">Khác</option>
+                        </InputSelect>
+                        <ValidationMessage For="@(() => registerModel.GioiTinh)" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Số CCCD:</label>
+                        <InputText class="form-control" @bind-Value="registerModel.SoCCCD" />
+                        <ValidationMessage For="@(() => registerModel.SoCCCD)" />
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Số điện thoại:</label>
+                        <InputText class="form-control" @bind-Value="registerModel.Sdt" />
+                        <ValidationMessage For="@(() => registerModel.Sdt)" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Email:</label>
+                        <InputText class="form-control" @bind-Value="registerModel.Email" />
+                        <ValidationMessage For="@(() => registerModel.Email)" />
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Địa chỉ thường trú:</label>
+                        <InputText class="form-control" @bind-Value="registerModel.DiaChiThuongTru" />
+                        <ValidationMessage For="@(() => registerModel.DiaChiThuongTru)" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Địa chỉ tạm trú:</label>
+                        <InputText class="form-control" @bind-Value="registerModel.DiaChiTamTru" />
+                        <ValidationMessage For="@(() => registerModel.DiaChiTamTru)" />
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Nghề nghiệp:</label>
+                        <InputText class="form-control" @bind-Value="registerModel.NgheNghiep" />
+                        <ValidationMessage For="@(() => registerModel.NgheNghiep)" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Tình trạng hôn nhân:</label>
+                        <InputSelect class="form-control" @bind-Value="registerModel.HonNhan">
+                            <option value="">Chọn tình trạng</option>
+                            <option value="Độc thân">Độc thân</option>
+                            <option value="Đã kết hôn">Đã kết hôn</option>
+                            <option value="Ly hôn">Ly hôn</option>
+                        </InputSelect>
+                        <ValidationMessage For="@(() => registerModel.HonNhan)" />
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Bằng lái xe:</label>
+                        <InputText class="form-control" @bind-Value="registerModel.BangLaiXe" />
+                        <ValidationMessage For="@(() => registerModel.BangLaiXe)" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Số tài khoản ngân hàng:</label>
+                        <InputText class="form-control" @bind-Value="registerModel.SoTkNganHang" />
+                        <ValidationMessage For="@(() => registerModel.SoTkNganHang)" />
+                    </div>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Đăng ký</button>
+            <div class="login-link">
+                <p>Đã có tài khoản? <a href="/login">Đăng nhập ngay</a></p>
+            </div>
+        </EditForm>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger mt-3">@errorMessage</div>
+        }
+    </div>
+</div>
+
+@code {
+    private RegisterModel registerModel = new();
+    private string errorMessage = string.Empty;
+
+    private class RegisterModel
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string HoTen { get; set; } = string.Empty;
+        public DateTime NgaySinh { get; set; }
+        public string GioiTinh { get; set; } = string.Empty;
+        public string SoCCCD { get; set; } = string.Empty;
+        public string Sdt { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        public string DiaChiThuongTru { get; set; } = string.Empty;
+        public string? DiaChiTamTru { get; set; }
+        public string? NgheNghiep { get; set; }
+        public string? HonNhan { get; set; }
+        public string? BangLaiXe { get; set; }
+        public string? SoTkNganHang { get; set; }
+    }
+
+    private async Task HandleRegister()
+    {
+        try
+        {
+            var user = new User
+                {
+                    Username = registerModel.Username,
+                    Password = registerModel.Password,
+                    HoTen = registerModel.HoTen,
+                    NgaySinh = registerModel.NgaySinh,
+                    GioiTinh = registerModel.GioiTinh,
+                    SoCCCD = registerModel.SoCCCD,
+                    Sdt = registerModel.Sdt,
+                    Email = registerModel.Email,
+                    DiaChiThuongTru = registerModel.DiaChiThuongTru,
+                    DiaChiTamTru = registerModel.DiaChiTamTru,
+                    NgheNghiep = registerModel.NgheNghiep,
+                    HonNhan = registerModel.HonNhan,
+                    BangLaiXe = registerModel.BangLaiXe,
+                    SoTkNganHang = registerModel.SoTkNganHang
+                };
+
+            var response = await AuthService.RegisterAsync(user);
+            Navigation.NavigateTo("/login");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+}

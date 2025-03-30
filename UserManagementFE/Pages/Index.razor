@@ -1,0 +1,32 @@
+﻿@page "/"
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject ILogger<Index> Logger
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Kiểm tra xem token có tồn tại trong local storage không
+            var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+
+            if (string.IsNullOrEmpty(token))
+            {
+                // Nếu chưa đăng nhập, chuyển hướng đến trang login
+                Navigation.NavigateTo("/login");
+            }
+            else
+            {
+                // Nếu đã đăng nhập, chuyển hướng đến trang profile
+                Navigation.NavigateTo("/profile");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log lỗi
+            Logger.LogError(ex, "An error occurred during OnInitializedAsync.");
+            // Tùy chọn: điều hướng đến trang lỗi hoặc hiển thị thông báo lỗi
+        }
+    }
+}
