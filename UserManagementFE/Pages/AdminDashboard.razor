@@ -1,0 +1,250 @@
+@page "/admin"
+@using UserManagementFE.Models
+@using UserManagementFE.Services
+@inject IAdminService AdminService
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+
+<div class="container-fluid p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-primary fw-bold">
+            <i class="fas fa-users-cog me-2"></i>Quản lý người dùng
+        </h2>
+        <div class="d-flex gap-2">
+            <button class="btn btn-danger d-flex align-items-center" @onclick="HandleLogout">
+                <i class="fas fa-sign-out-alt me-2"></i>Đăng xuất
+            </button>
+            <button class="btn btn-success d-flex align-items-center" @onclick="() => ShowAddUserDialog()">
+                <i class="fas fa-plus me-2"></i>Thêm người dùng
+            </button>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light">
+                            <i class="fas fa-search text-primary"></i>
+                        </span>
+                        <input type="text" class="form-control border-start-0" 
+                               placeholder="Tìm kiếm người dùng..." 
+                               @bind="searchString" @bind:event="oninput" />
+                        <button class="btn btn-primary" @onclick="SearchUsers">
+                            <i class="fas fa-search me-1"></i> Tìm kiếm
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Họ và tên</th>
+                            <th>Email</th>
+                            <th>Số điện thoại</th>
+                            <th>Số CCCD</th>
+                            <th>Địa chỉ thường trú</th>
+                            <th>Tài khoản ngân hàng</th>
+                            <th style="width: 100px">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in users)
+                        {
+                            <tr>
+                                <td>@user.HoTen</td>
+                                <td>@user.Email</td>
+                                <td>@user.Sdt</td>
+                                <td>@user.SoCCCD</td>
+                                <td>@user.DiaChiThuongTru</td>
+                                <td>@user.SoTKNganHang</td>
+                                <td>
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-outline-primary" @onclick="() => ShowEditUserDialog(user)"
+                                                title="Chỉnh sửa">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteUser(user.Id)"
+                                                title="Xóa">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <div class="text-muted">
+                    Hiển thị @((currentPage - 1) * pageSize + 1) đến @(Math.Min(currentPage * pageSize, totalItems)) 
+                    trong tổng số @totalItems người dùng
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-outline-primary" disabled="@(currentPage == 1)" @onclick="PreviousPage">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <button class="btn btn-outline-primary" disabled>
+                        Trang @currentPage / @totalPages
+                    </button>
+                    <button class="btn btn-outline-primary" disabled="@(currentPage == totalPages)" @onclick="NextPage">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<UserDialog IsVisible="@showDialog" 
+            IsVisibleChanged="@(new EventCallback<bool>(this, OnDialogVisibilityChanged))"
+            ProfileModel="@selectedUser"
+            OnSave="@OnSaveUser" />
+
+@code {
+    private List<ProfileModel> users = new();
+    private int currentPage = 1;
+    private int pageSize = 6;
+    private int totalItems;
+    private int totalPages;
+    private string searchString = "";
+    private bool showDialog;
+    private ProfileModel? selectedUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        try
+        {
+            var response = await AdminService.GetUsersAsync(currentPage, pageSize, searchString);
+            users = response.Items;
+            totalItems = response.TotalCount;
+            totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+
+            // Đảm bảo currentPage không vượt quá totalPages
+            if (currentPage > totalPages && totalPages > 0)
+            {
+                currentPage = totalPages;
+                await LoadUsers(); // Gọi lại để lấy dữ liệu với trang mới
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Lỗi khi tải danh sách người dùng: {ex.Message}");
+        }
+    }
+
+    private async Task PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+            await LoadUsers();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+            await LoadUsers();
+        }
+    }
+
+    private async Task SearchUsers()
+    {
+        currentPage = 1;
+        await LoadUsers();
+    }
+
+    private async Task DeleteUser(int userId)
+    {
+        if (await JSRuntime.InvokeAsync<bool>("confirm", "Bạn có chắc chắn muốn xóa người dùng này?"))
+        {
+            try
+            {
+                await AdminService.DeleteUserAsync(userId);
+                await LoadUsers();
+                await JSRuntime.InvokeVoidAsync("alert", "Xóa người dùng thành công!");
+            }
+            catch (Exception ex)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Lỗi khi xóa người dùng: {ex.Message}");
+            }
+        }
+    }
+
+    private void ShowAddUserDialog()
+    {
+        selectedUser = null;
+        showDialog = true;
+    }
+
+    private void ShowEditUserDialog(ProfileModel user)
+    {
+        selectedUser = user;
+        showDialog = true;
+    }
+
+    private async Task OnDialogVisibilityChanged(bool value)
+    {
+        showDialog = value;
+        if (!value)
+        {
+            selectedUser = null;
+        }
+    }
+
+    private async Task OnSaveUser(ProfileModel user)
+    {
+        try
+        {
+            if (selectedUser == null)
+            {
+                await AdminService.CreateUserAsync(user);
+                await JSRuntime.InvokeVoidAsync("alert", "Thêm người dùng thành công!");
+            }
+            else
+            {
+                await AdminService.UpdateUserAsync(user);
+                await JSRuntime.InvokeVoidAsync("alert", "Cập nhật thông tin người dùng thành công!");
+            }
+            showDialog = false;
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Lỗi khi lưu thông tin người dùng: {ex.Message}");
+        }
+    }
+
+    private async Task HandleLogout()
+    {
+        try
+        {
+            
+            NavigationManager.NavigateTo("/");
+            await Task.Delay(200);
+            await JSRuntime.InvokeVoidAsync("alert", "Đăng xuất thành công!");
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Lỗi khi đăng xuất: {ex.Message}");
+        }
+    }
+
+    private async Task HandleUserSaved(ProfileModel user)
+    {
+        showDialog = false;
+        await LoadUsers();
+    }
+} 

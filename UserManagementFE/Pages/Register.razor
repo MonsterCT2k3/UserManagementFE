@@ -194,8 +194,8 @@
                 <div class="col-md-6">
                     <div class="form-group">
                         <label>Số tài khoản ngân hàng:</label>
-                        <InputText class="form-control" @bind-Value="registerModel.SoTkNganHang" />
-                        <ValidationMessage For="@(() => registerModel.SoTkNganHang)" />
+                        <InputText class="form-control" @bind-Value="registerModel.SoTKNganHang" />
+                        <ValidationMessage For="@(() => registerModel.SoTKNganHang)" />
                     </div>
                 </div>
             </div>
@@ -231,7 +231,7 @@
         public string? NgheNghiep { get; set; }
         public string? HonNhan { get; set; }
         public string? BangLaiXe { get; set; }
-        public string? SoTkNganHang { get; set; }
+        public string? SoTKNganHang { get; set; }
     }
 
     private async Task HandleRegister()
@@ -253,7 +253,8 @@
                     NgheNghiep = registerModel.NgheNghiep,
                     HonNhan = registerModel.HonNhan,
                     BangLaiXe = registerModel.BangLaiXe,
-                    SoTkNganHang = registerModel.SoTkNganHang
+                    SoTKNganHang = registerModel.SoTKNganHang,
+                    Role = "User"
                 };
 
             var response = await AuthService.RegisterAsync(user);

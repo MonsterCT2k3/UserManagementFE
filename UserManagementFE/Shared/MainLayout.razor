@@ -2,7 +2,7 @@
 @inject NavigationManager Navigation
 
 <div class="page">
-    @if (!IsLoginOrRegisterPage())
+    @if (!IsLoginOrRegisterPageOrDashBoard())
     {
         <div class="sidebar">
             <NavMenu />
@@ -17,9 +17,9 @@
 </div>
 
 @code {
-    private bool IsLoginOrRegisterPage()
+    private bool IsLoginOrRegisterPageOrDashBoard()
     {
         var relativePath = Navigation.ToBaseRelativePath(Navigation.Uri).ToLower();
-        return relativePath == "login" || relativePath == "register";
+        return relativePath == "login" || relativePath == "register" || relativePath == "admin";
     }
 }

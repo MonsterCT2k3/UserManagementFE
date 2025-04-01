@@ -116,14 +116,24 @@
             loginModel.Password = loginModel.Password.Trim();
             Console.WriteLine("Username: " + loginModel.Username);
             Console.WriteLine("Password: " + loginModel.Password);
-            
-            
+
+
             // Gọi API đăng nhập
-             var response = await AuthService.LoginAsync(loginModel);
-             if (response == null || string.IsNullOrEmpty(response))
-			 {
-				 throw new Exception("Không thể lấy token từ server.");
-			 }
+            var response = await AuthService.LoginAsync(loginModel);
+            if (response == null || string.IsNullOrEmpty(response))
+            {
+                throw new Exception("Không thể lấy token từ server.");
+            }
+            if(response == "Admin")
+            {
+                Navigation.NavigateTo("/admin");
+            }else
+			{
+				Navigation.NavigateTo("/profile");
+			}
+
+
+
             // var tokenResponse = JsonSerializer.Deserialize<TokenResponse>(response);
             // if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.token))
             // {
@@ -134,7 +144,6 @@
             // await JS.InvokeVoidAsync("localStorage.setItem", "authToken", tokenResponse.token);
 
             // Chuyển hướng đến trang profile
-            Navigation.NavigateTo("/profile");
         }
         catch (Exception ex)
         {

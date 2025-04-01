@@ -1,0 +1,303 @@
+@using UserManagementFE.Models
+@inject IJSRuntime JSRuntime
+@inject IAdminService AdminService
+
+@if (IsVisible)
+{
+    <div class="modal-backdrop fade show"></div>
+}
+
+<div class="modal fade @(IsVisible ? "show" : "")" style="display: @(IsVisible ? "block" : "none")" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">@(IsEdit ? "Chỉnh sửa người dùng" : "Thêm người dùng mới")</h5>
+                <button type="button" class="btn-close" @onclick="OnClose"></button>
+            </div>
+            <div class="modal-body">
+                <EditForm Model="@UserModel" OnValidSubmit="HandleValidSubmit">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            @if (IsEdit)
+                            {
+                                <div class="mb-3">
+                                    <label class="form-label">ID</label>
+                                    <input type="text" class="form-control" value="@UserModel.Id" readonly />
+                                </div>
+                            }
+
+                            <div class="mb-3">
+                                <label class="form-label required">Tên đăng nhập</label>
+                                <InputText class="form-control" @bind-Value="UserModel.Username" />
+                            </div>
+
+                            @if (!IsEdit)
+                            {
+                                <div class="mb-3">
+                                    <label class="form-label required">Mật khẩu</label>
+                                    <InputText type="password" class="form-control" @bind-Value="UserModel.Password" />
+                                </div>
+                            }
+
+                            <div class="mb-3">
+                                <label class="form-label required">Họ và tên</label>
+                                <InputText class="form-control" @bind-Value="UserModel.HoTen" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label required">Ngày sinh</label>
+                                <InputDate class="form-control" @bind-Value="UserModel.NgaySinh" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label required">Giới tính</label>
+                                <InputSelect class="form-control" @bind-Value="UserModel.GioiTinh">
+                                    <option value="">Chọn giới tính</option>
+                                    <option value="Nam">Nam</option>
+                                    <option value="Nu">Nữ</option>
+                                </InputSelect>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label required">Số CCCD</label>
+                                <InputText class="form-control" @bind-Value="UserModel.SoCCCD" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label required">Số điện thoại</label>
+                                <InputText class="form-control" @bind-Value="UserModel.Sdt" />
+                            </div>
+
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label required">Địa chỉ thường trú</label>
+                                <InputText class="form-control" @bind-Value="UserModel.DiaChiThuongTru" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Địa chỉ tạm trú</label>
+                                <InputText class="form-control" @bind-Value="UserModel.DiaChiTamTru" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Nghề nghiệp</label>
+                                <InputText class="form-control" @bind-Value="UserModel.NgheNghiep" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Tình trạng hôn nhân</label>
+                                <InputSelect class="form-control" @bind-Value="UserModel.HonNhan">
+                                    <option value="">Chọn tình trạng</option>
+                                    <option value="Độc thân">Độc thân</option>
+                                    <option value="Đã kết hôn">Đã kết hôn</option>
+                                    <option value="Ly hôn">Ly hôn</option>
+                                    <option value="Góa">Góa</option>
+                                </InputSelect>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Bằng lái xe</label>
+                                <InputText class="form-control" @bind-Value="UserModel.BangLaiXe" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Số tài khoản ngân hàng</label>
+                                <InputText class="form-control" @bind-Value="UserModel.SoTKNganHang" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <InputText class="form-control" @bind-Value="UserModel.Email" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="OnClose">Hủy</button>
+                        <button type="submit" class="btn btn-primary">Lưu</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 1040;
+        width: 100vw;
+        height: 100vh;
+        background-color: #000;
+        opacity: 0.5;
+    }
+
+    .modal {
+        z-index: 1050;
+    }
+
+    .validation-message {
+        color: red;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+
+    .form-label.required::after {
+        content: " *";
+        color: red;
+    }
+
+    .modal-dialog {
+        max-width: 800px;
+    }
+
+    .modal-body {
+        max-height: calc(100vh - 210px);
+        overflow-y: auto;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> IsVisibleChanged { get; set; }
+
+    [Parameter]
+    public ProfileModel? ProfileModel { get; set; }
+
+    [Parameter]
+    public EventCallback<ProfileModel> OnSave { get; set; }
+
+    private ProfileModel UserModel = new()
+    {
+        Id = 0,
+        Username = string.Empty,
+        HoTen = string.Empty,
+        NgaySinh = DateTime.Now,
+        GioiTinh = string.Empty,
+        SoCCCD = string.Empty,
+        Sdt = string.Empty,
+        DiaChiThuongTru = string.Empty
+    };
+
+    private bool IsEdit => ProfileModel != null;
+
+    protected override void OnParametersSet()
+    {
+        if (ProfileModel != null)
+        {
+            UserModel = new ProfileModel
+            {
+                Id = ProfileModel.Id,
+                Username = ProfileModel.Username,
+                HoTen = ProfileModel.HoTen,
+                NgaySinh = ProfileModel.NgaySinh,
+                GioiTinh = ProfileModel.GioiTinh,
+                SoCCCD = ProfileModel.SoCCCD,
+                Sdt = ProfileModel.Sdt,
+                Email = ProfileModel.Email,
+                DiaChiThuongTru = ProfileModel.DiaChiThuongTru,
+                DiaChiTamTru = ProfileModel.DiaChiTamTru,
+                NgheNghiep = ProfileModel.NgheNghiep,
+                HonNhan = ProfileModel.HonNhan,
+                BangLaiXe = ProfileModel.BangLaiXe,
+                SoTKNganHang = ProfileModel.SoTKNganHang
+            };
+        }
+        else
+        {
+            UserModel = new ProfileModel
+            {
+                Id = 0,
+                Username = string.Empty,
+                HoTen = string.Empty,
+                NgaySinh = DateTime.Now,
+                GioiTinh = string.Empty,
+                SoCCCD = string.Empty,
+                Sdt = string.Empty,
+                DiaChiThuongTru = string.Empty
+            };
+        }
+    }
+
+    private async Task OnClose()
+    {
+        // Reset form
+        UserModel = new ProfileModel
+        {
+            Id = 0,
+            Username = string.Empty,
+            HoTen = string.Empty,
+            NgaySinh = DateTime.Now,
+            GioiTinh = string.Empty,
+            SoCCCD = string.Empty,
+            Sdt = string.Empty,
+            DiaChiThuongTru = string.Empty
+        };
+        await IsVisibleChanged.InvokeAsync(false);
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (string.IsNullOrWhiteSpace(UserModel.Username))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Vui lòng nhập tên đăng nhập!");
+            return;
+        }
+
+        if (!IsEdit && string.IsNullOrWhiteSpace(UserModel.Password))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Vui lòng nhập mật khẩu!");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(UserModel.HoTen))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Vui lòng nhập họ tên!");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(UserModel.GioiTinh))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Vui lòng chọn giới tính!");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(UserModel.SoCCCD))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Vui lòng nhập số CCCD!");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(UserModel.Sdt))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Vui lòng nhập số điện thoại!");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(UserModel.DiaChiThuongTru))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Vui lòng nhập địa chỉ thường trú!");
+            return;
+        }
+
+        try
+        {
+            await OnSave.InvokeAsync(UserModel);
+            await OnClose();
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Lỗi: {ex.Message}");
+        }
+    }
+} 

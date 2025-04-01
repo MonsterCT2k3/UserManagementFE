@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.Extensions.Logging;
 using UserManagementFE;
 using UserManagementFE.Services;
+using Blazored.Toast;
+using Blazored.SessionStorage;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
@@ -15,9 +17,14 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<RSAKeyService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddBlazoredSessionStorage();
 
 // Đăng ký PublicKeyStore như một singleton service
 builder.Services.AddScoped<IPublicKeyStore, PublicKeyStore>();
+
+// Đăng ký Blazored.Toast
+builder.Services.AddBlazoredToast();
 
 // Cấu hình logging
 builder.Logging.SetMinimumLevel(LogLevel.Debug); // Đặt mức log tối thiểu là Debug

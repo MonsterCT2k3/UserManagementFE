@@ -1,47 +1,46 @@
 ﻿using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Numerics;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.JSInterop;
 using UserManagementFE.Models;
-using System.Text.Json;
-using System.Text.Encodings.Web;
-using System.Text;
-using System.Numerics;
 using UserManagementFE.Utils;
-using Blazored.SessionStorage;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Encodings.Web;
+
 
 namespace UserManagementFE.Services
 {
-    public class UserService
+    public interface IAdminService
+    {
+        Task<PagedResponse<ProfileModel>> GetUsersAsync(int page, int pageSize, string searchString);
+        Task<string> CreateUserAsync(ProfileModel user);
+        Task<string> UpdateUserAsync(ProfileModel user);
+        Task DeleteUserAsync(int userId);
+        Request CreateRSARequest(byte[] dataBytes, PublicKey publicKeyBE);
+    }
+
+    public class AdminService : IAdminService
     {
         private readonly HttpClient _httpClient;
         private readonly IJSRuntime _js;
-        private readonly ILogger<UserService> _logger;
+        private readonly ILogger<AdminService> _logger;
         private readonly RSAKeyService _rsaKeyService;
         private readonly IPublicKeyStore _publicKeyStore;
-        private readonly ISessionStorageService _sessionStorage;
 
-        public UserService(HttpClient httpClient, IJSRuntime js, ILogger<UserService> logger, RSAKeyService rsaKeyService, IPublicKeyStore publicKeyStore, ISessionStorageService sessionStorage)
+        public AdminService(HttpClient httpClient, IJSRuntime js, ILogger<AdminService> logger, RSAKeyService rsaKeyService, IPublicKeyStore publicKeyStore)
         {
             _httpClient = httpClient;
             _js = js;
             _logger = logger;
             _rsaKeyService = rsaKeyService;
             _publicKeyStore = publicKeyStore;
-            _sessionStorage = sessionStorage;
         }
 
-        private async Task AddAuthorizationHeader()
-        {
-            var token = await _js.InvokeAsync<string>("localStorage.getItem", "authToken");
-            if (!string.IsNullOrEmpty(token))
-            {
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            }
-        }
-
-        private Request CreateRSARequest(byte[] dataBytes, PublicKey publicKeyBE)
+        public Request CreateRSARequest(byte[] dataBytes, PublicKey publicKeyBE)
         {
             // Tạo mask ngẫu nhiên với độ dài bằng với dữ liệu
             byte[] mask = new byte[dataBytes.Length];
@@ -148,36 +147,119 @@ namespace UserManagementFE.Services
             return Encoding.UTF8.GetString(originalData);
         }
 
-        public async Task<ProfileModel?> GetProfileAsync()
+            private async Task AddAuthorizationHeader()
+        {
+            var token = await _js.InvokeAsync<string>("localStorage.getItem", "authToken");
+            if (!string.IsNullOrEmpty(token))
+            {
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            }
+        }
+
+        public async Task<PagedResponse<ProfileModel>> GetUsersAsync(int page, int pageSize, string searchString)
         {
             //await AddAuthorizationHeader();
-            var (n, e) =  _rsaKeyService.GetPublicKey();
-            int userId =  await _sessionStorage.GetItemAsync<int>("userId");
-            Console.WriteLine($"userId: {userId}");
-            Console.WriteLine($"n: {n}, e: {e}");
-            var response = await _httpClient.GetAsync($"api/User/{userId}?n={n}&e={e}");
+            var (n, e) = _rsaKeyService.GetPublicKey();
+            var response = await _httpClient.GetAsync($"/api/User?n={n}&e={e}");
             response.EnsureSuccessStatusCode();
-            
+            // Xử lý response
             var responseContent = await response.Content.ReadAsStringAsync();
             var responseObject = JsonSerializer.Deserialize<Response>(responseContent);
             if (responseObject == null)
             {
                 throw new Exception("Phản hồi từ server không hợp lệ.");
             }
-
-            var decryptedData = DecryptResponseData(responseObject);
-            Console.WriteLine($"data profile: {decryptedData}");
-            ProfileModel loginResponse = JsonSerializer.Deserialize<ProfileModel>(decryptedData);
-            return loginResponse;
+            string decryptedData = DecryptResponseData(responseObject);
+            Console.WriteLine($"decryptedData: {decryptedData}");
+            List<ProfileModel> listUser = JsonSerializer.Deserialize<List<ProfileModel>>(decryptedData);
+            return new PagedResponse<ProfileModel> { Items = listUser, TotalCount =  listUser.Count};
+  
         }
 
-        public async Task<string> EditProfileAsync(ProfileModel user)
+        public async Task<string> CreateUserAsync(ProfileModel user)
         {
-            //var (n, e) = _rsaKeyService.GetPublicKey();
-            int userId = await _sessionStorage.GetItemAsync<int>("userId");
+            User newUser = new User
+            {
+                Username = user.Username,
+                Password = user.Password,
+                HoTen = user.HoTen,
+                NgaySinh = user.NgaySinh,
+                GioiTinh = user.GioiTinh,
+                SoCCCD = user.SoCCCD,
+                Sdt = user.Sdt,
+                Email = user.Email,
+                DiaChiThuongTru = user.DiaChiThuongTru,
+                DiaChiTamTru = user.DiaChiTamTru,
+                NgheNghiep = user.NgheNghiep,
+                HonNhan = user.HonNhan,
+                BangLaiXe = user.BangLaiXe,
+                SoTKNganHang = user.SoTKNganHang,
+                Role = "User"
+            };
+            // Lấy public key từ backend
+            var publicKeyJson = await _publicKeyStore.GetPublicKeyAsync();
+            var publicKeyBE = JsonSerializer.Deserialize<PublicKey>(publicKeyJson);
+            if (publicKeyBE == null || string.IsNullOrEmpty(publicKeyBE.n) || string.IsNullOrEmpty(publicKeyBE.e))
+            {
+                throw new Exception("Không thể lấy public key từ server.");
+            }
+
+            var options = new JsonSerializerOptions
+            {
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            };
+
+            // Chuyển dữ liệu user thành JSON
+            var userJson = JsonSerializer.Serialize(newUser, options);
+            Console.WriteLine($"userJson: {userJson}");
+            var dataBytes = Encoding.UTF8.GetBytes(userJson);
+
+            // Tạo request object với mã hóa RSA
+            var request = CreateRSARequest(dataBytes, publicKeyBE);
+            _logger.LogInformation("------------");
+            _logger.LogInformation($"Data: {request.Data}");
+            _logger.LogInformation($"Mask: {request.Mask}");
+            _logger.LogInformation($"PublicKeyFE: {request.PublicKeyFE}");
+
+            // Gửi request đến server
+            var response = await _httpClient.PostAsJsonAsync("api/User/register", request);
+            response.EnsureSuccessStatusCode();
+
+            // Xử lý response
+            var responseContent = await response.Content.ReadAsStringAsync();
+            var responseObject = JsonSerializer.Deserialize<Response>(responseContent);
+            if (responseObject == null)
+            {
+                throw new Exception("Phản hồi từ server không hợp lệ.");
+            }
+            string decryptedData = DecryptResponseData(responseObject);
+            Console.WriteLine($"decryptedData: {decryptedData}");
+
+            // Giải mã và trả về thông báo
+            return decryptedData;
+        }
+
+        public async Task<string> UpdateUserAsync(ProfileModel user)
+        {
+            UpdateForAdminModel userWithoutPassword = new UpdateForAdminModel
+            {
+                Id = user.Id,
+                Username = user.Username,
+                HoTen = user.HoTen,
+                NgaySinh = user.NgaySinh,
+                GioiTinh = user.GioiTinh,
+                SoCCCD = user.SoCCCD,
+                Sdt = user.Sdt,
+                Email = user.Email,
+                DiaChiThuongTru = user.DiaChiThuongTru,
+                DiaChiTamTru = user.DiaChiTamTru,
+                NgheNghiep = user.NgheNghiep,
+                HonNhan = user.HonNhan,
+                BangLaiXe = user.BangLaiXe,
+                SoTKNganHang = user.SoTKNganHang
+            };
+            int userId = user.Id;
             Console.WriteLine($"userId: {userId}");
-            //Console.WriteLine($"n: {n}, e: {e}");
-            //await AddAuthorizationHeader();
 
             // Lấy public key từ backend
             var publicKeyJson = await _publicKeyStore.GetPublicKeyAsync();
@@ -193,7 +275,8 @@ namespace UserManagementFE.Services
             };
 
             // Chuyển dữ liệu user thành JSON
-            var userJson = JsonSerializer.Serialize(user, options);
+            var userJson = JsonSerializer.Serialize(userWithoutPassword, options);
+            Console.WriteLine($"userJson: {userJson}");
             var dataBytes = Encoding.UTF8.GetBytes(userJson);
 
             // Tạo request object với mã hóa RSA
@@ -215,37 +298,16 @@ namespace UserManagementFE.Services
             return decryptedData;
         }
 
-        public async Task<string> ChangePasswordAsync(ChangePasswordRequest request)
+        public async Task DeleteUserAsync(int userId)
         {
-            int userId = await _sessionStorage.GetItemAsync<int>("userId");
 
             //await AddAuthorizationHeader();
-
-            // Lấy public key từ backend
-            var publicKeyJson = await _publicKeyStore.GetPublicKeyAsync();
-            var publicKeyBE = JsonSerializer.Deserialize<PublicKey>(publicKeyJson);
-            if (publicKeyBE == null || string.IsNullOrEmpty(publicKeyBE.n) || string.IsNullOrEmpty(publicKeyBE.e))
-            {
-                throw new Exception("Không thể lấy public key từ server.");
-            }
-
-            var options = new JsonSerializerOptions
-            {
-                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-            };
-
-            // Chuyển dữ liệu request thành JSON
-            var requestJson = JsonSerializer.Serialize(request, options);
-            var dataBytes = Encoding.UTF8.GetBytes(requestJson);
-
-            // Tạo request object với mã hóa RSA
-            var encryptedRequest = CreateRSARequest(dataBytes, publicKeyBE);
-
-            // Gửi request đến server
-            var response = await _httpClient.PutAsJsonAsync($"api/User/changePassword/{userId}", encryptedRequest);
+            var (n, e) = _rsaKeyService.GetPublicKey();
+            Console.WriteLine($"userId: {userId}");
+            Console.WriteLine($"n: {n}, e: {e}");
+            var response = await _httpClient.DeleteAsync($"api/User/{userId}?n={n}&e={e}");
             response.EnsureSuccessStatusCode();
 
-            // Xử lý response
             var responseContent = await response.Content.ReadAsStringAsync();
             var responseObject = JsonSerializer.Deserialize<Response>(responseContent);
             if (responseObject == null)
@@ -254,14 +316,13 @@ namespace UserManagementFE.Services
             }
 
             var decryptedData = DecryptResponseData(responseObject);
-            Console.WriteLine($"new data: {decryptedData}");
-            return decryptedData;
+            Console.WriteLine($"message: {decryptedData}");
         }
     }
 
-    public class ChangePasswordRequest
+    public class PagedResponse<T>
     {
-        public string OldPassword { get; set; } = string.Empty;
-        public string NewPassword { get; set; } = string.Empty;
+        public List<T> Items { get; set; } = new();
+        public int TotalCount { get; set; }
     }
-}
+} 

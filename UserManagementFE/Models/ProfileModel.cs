@@ -1,16 +1,17 @@
 ﻿namespace UserManagementFE.Models
 {
-    public class User
+    public class ProfileModel
     {
-        public required string Username { get; set; }
-        public required string Password { get; set; }
-        public required string HoTen { get; set; }
+        public int Id { get; set; }
+        public string Password { get; set; } = string.Empty;
+        public string? Username { get; set; }
+        public string? HoTen { get; set; }
         public DateTime NgaySinh { get; set; } // DateTime không cần required vì là value type
-        public required string GioiTinh { get; set; }
-        public required string SoCCCD { get; set; }
-        public required string Sdt { get; set; }
+        public string? GioiTinh { get; set; }
+        public string? SoCCCD { get; set; }
+        public string? Sdt { get; set; }
         public string? Email { get; set; }
-        public required string DiaChiThuongTru { get; set; }
+        public string? DiaChiThuongTru { get; set; }
         public string? DiaChiTamTru { get; set; }
         public string? NgheNghiep { get; set; }
         public string? HonNhan { get; set; }
