@@ -1,0 +1,74 @@
+﻿@page "/other-users"
+@inject UserService UserService
+@inject IJSRuntime JSRuntime
+@using UserManagementFE.Models
+
+@code {
+    //private List<ProfileModel> users = new List<ProfileModel>();
+    private List<ProfileModel> users = new List<ProfileModel>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            users = await UserService.GetOtherUsersAsync();
+            if (users == null || users.Count == 0)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Không có dữ liệu người dùng");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Lỗi khi tải danh sách người dùng: {ex.Message}");
+        }
+    }
+}
+
+<div class="container-fluid p-4">
+    <h2 class="text-primary fw-bold mb-4">
+        <i class="fas fa-users me-2"></i>Danh sách thành viên
+    </h2>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Họ và tên</th>
+                            <th>Giới tính</th>
+                            <th>Email</th>
+                            <th>Số điện thoại</th>
+                            <th>Số CCCD</th>
+                            <th>Nghề nghiệp</th>
+                            <th>Tài khoản ngân hàng</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (users != null && users.Any())
+                        {
+                            @foreach (var user in users)
+                            {
+                                <tr>
+                                    <td>@user.HoTen</td>
+                                    <td>@user.GioiTinh</td>
+                                    <td>@user.Email</td>
+                                    <td>@user.Sdt</td>
+                                    <td>@user.SoCCCD</td>
+                                    <td>@user.NgheNghiep</td>
+                                    <td>@user.SoTKNganHang</td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center">Không có dữ liệu người dùng</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

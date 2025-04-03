@@ -148,14 +148,38 @@ namespace UserManagementFE.Services
             return Encoding.UTF8.GetString(originalData);
         }
 
-        public async Task<ProfileModel?> GetProfileAsync()
+		public async Task<ProfileModel?> GetProfileAsync()
+		{
+			//await AddAuthorizationHeader();
+			var (n, e) = _rsaKeyService.GetPublicKey();
+			int userId = await _sessionStorage.GetItemAsync<int>("userId");
+			Console.WriteLine($"userId: {userId}");
+			Console.WriteLine($"n: {n}, e: {e}");
+			var response = await _httpClient.GetAsync($"api/User/{userId}?n={n}&e={e}");
+			response.EnsureSuccessStatusCode();
+
+			var responseContent = await response.Content.ReadAsStringAsync();
+			var responseObject = JsonSerializer.Deserialize<Response>(responseContent);
+			if (responseObject == null)
+			{
+				throw new Exception("Phản hồi từ server không hợp lệ.");
+			}
+
+			var decryptedData = DecryptResponseData(responseObject);
+			Console.WriteLine($"data profile: {decryptedData}");
+			ProfileModel loginResponse = JsonSerializer.Deserialize<ProfileModel>(decryptedData);
+			return loginResponse;
+		}
+
+
+		public async Task<List<ProfileModel>> GetOtherUsersAsync()
         {
             //await AddAuthorizationHeader();
             var (n, e) =  _rsaKeyService.GetPublicKey();
             int userId =  await _sessionStorage.GetItemAsync<int>("userId");
             Console.WriteLine($"userId: {userId}");
             Console.WriteLine($"n: {n}, e: {e}");
-            var response = await _httpClient.GetAsync($"api/User/{userId}?n={n}&e={e}");
+            var response = await _httpClient.GetAsync($"api/User/except/{userId}?n={n}&e={e}");
             response.EnsureSuccessStatusCode();
             
             var responseContent = await response.Content.ReadAsStringAsync();
@@ -167,8 +191,8 @@ namespace UserManagementFE.Services
 
             var decryptedData = DecryptResponseData(responseObject);
             Console.WriteLine($"data profile: {decryptedData}");
-            ProfileModel loginResponse = JsonSerializer.Deserialize<ProfileModel>(decryptedData);
-            return loginResponse;
+			List<ProfileModel> otherUsers = JsonSerializer.Deserialize<List<ProfileModel>>(decryptedData);
+            return otherUsers;
         }
 
         public async Task<string> EditProfileAsync(ProfileModel user)
