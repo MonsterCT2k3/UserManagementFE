@@ -19,6 +19,8 @@ builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<RSAKeyService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddBlazoredSessionStorage();
+builder.Services.AddScoped<EncryptionService>();
+builder.Services.AddScoped<AESKeyService>();
 
 // Đăng ký PublicKeyStore như một singleton service
 builder.Services.AddScoped<IPublicKeyStore, PublicKeyStore>();

@@ -6,12 +6,10 @@ namespace UserManagementFE.Services
     public interface IPublicKeyStore
     {
         Task<string> GetPublicKeyAsync();
-        void SetPublicKey(string publicKey);
     }
 
     public class PublicKeyStore : IPublicKeyStore
     {
-        private string _publicKey;
         private readonly HttpClient _httpClient;
 
         public PublicKeyStore(HttpClient httpClient)
@@ -21,16 +19,8 @@ namespace UserManagementFE.Services
 
         public async Task<string> GetPublicKeyAsync()
         {
-            if (string.IsNullOrEmpty(_publicKey))
-            {
-                _publicKey = await _httpClient.GetStringAsync("api/User/public-key");
-            }
-            return _publicKey;
+            return await _httpClient.GetStringAsync("api/User/public-key");
         }
 
-        public void SetPublicKey(string publicKey)
-        {
-            _publicKey = publicKey;
-        }
     }
 }

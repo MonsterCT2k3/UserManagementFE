@@ -2,7 +2,8 @@
 {
     public class Response
     {
-        public string Data { get; set; } = string.Empty;
-        public string Mask { get; set; } = string.Empty;
+        public string DataEncryptedbyAes { get; set; } = string.Empty;
+        public string AesKeyMasked { get; set; } = string.Empty;
+        public string MaskEncryptedByRsa { get; set; } = string.Empty;
     }
 }

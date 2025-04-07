@@ -20,7 +20,6 @@ namespace UserManagementFE.Services
         Task<string> CreateUserAsync(ProfileModel user);
         Task<string> UpdateUserAsync(ProfileModel user);
         Task DeleteUserAsync(int userId);
-        Request CreateRSARequest(byte[] dataBytes, PublicKey publicKeyBE);
     }
 
     public class AdminService : IAdminService
@@ -28,131 +27,26 @@ namespace UserManagementFE.Services
         private readonly HttpClient _httpClient;
         private readonly IJSRuntime _js;
         private readonly ILogger<AdminService> _logger;
-        private readonly RSAKeyService _rsaKeyService;
         private readonly IPublicKeyStore _publicKeyStore;
+        private EncryptionService _encryptionService;
+        private readonly AESKeyService _aesKeyService;
 
-        public AdminService(HttpClient httpClient, IJSRuntime js, ILogger<AdminService> logger, RSAKeyService rsaKeyService, IPublicKeyStore publicKeyStore)
+        public AdminService(HttpClient httpClient, IJSRuntime js, ILogger<AdminService> logger, IPublicKeyStore publicKeyStore, EncryptionService encryptionService, AESKeyService aesKeyService)
         {
             _httpClient = httpClient;
             _js = js;
             _logger = logger;
-            _rsaKeyService = rsaKeyService;
             _publicKeyStore = publicKeyStore;
-        }
+            _encryptionService = encryptionService;
+            _aesKeyService = aesKeyService;
 
-        public Request CreateRSARequest(byte[] dataBytes, PublicKey publicKeyBE)
-        {
-            // Tạo mask ngẫu nhiên với độ dài bằng với dữ liệu
-            byte[] mask = new byte[dataBytes.Length];
-            Random.Shared.NextBytes(mask);
-
-            // Mã hóa mask bằng CustomRSA
-            var rsa = new CustomRSA();
-            var (n, e) = (BigInteger.Parse(publicKeyBE.n), BigInteger.Parse(publicKeyBE.e));
-            BigInteger[] encryptedMaskBigIntegers = rsa.Encrypt(mask, n, e);
-
-            // Chuyển đổi BigInteger[] thành byte[]
-            const int blockSize = 8;
-            byte[] encryptedMaskBytes = new byte[encryptedMaskBigIntegers.Length * blockSize];
-            for (int i = 0; i < encryptedMaskBigIntegers.Length; i++)
-            {
-                byte[] bytes = encryptedMaskBigIntegers[i].ToByteArray();
-                if (bytes.Length > blockSize)
-                {
-                    Array.Copy(bytes, 0, encryptedMaskBytes, i * blockSize, blockSize);
-                }
-                else
-                {
-                    Array.Copy(bytes, 0, encryptedMaskBytes, i * blockSize, bytes.Length);
-                }
-            }
-
-            // Mã hóa dữ liệu bằng mask (XOR)
-            byte[] maskedData = new byte[dataBytes.Length];
-            for (int i = 0; i < dataBytes.Length; i++)
-            {
-                maskedData[i] = (byte)(dataBytes[i] ^ mask[i]);
-            }
-
-            // Chuyển đổi sang base64
-            var maskedDataBase64 = Convert.ToBase64String(maskedData);
-            var encryptedMaskBase64 = Convert.ToBase64String(encryptedMaskBytes);
-            var publicKeyFE = _rsaKeyService.GetPublicKey();
-            var privateKey = _rsaKeyService.GetPrivateKey();
-            Console.WriteLine($"n: {publicKeyFE.n}, e: {publicKeyFE.e}");
-            Console.WriteLine("------------");
-            Console.WriteLine($"n: {privateKey.n}, d: {privateKey.d}");
-
-            // Tạo request object
-            return new Request
-            {
-                Data = maskedDataBase64,
-                Mask = encryptedMaskBase64,
-                PublicKeyFE = new PublicKey
-                {
-                    n = publicKeyFE.n.ToString(),
-                    e = publicKeyFE.e.ToString()
-                }
-            };
-        }
-
-        private string DecryptResponseData(Response response)
-        {
-            const int blockSize = 8;
-            var rsa = new CustomRSA();
-
-            // Chuyển đổi base64 thành byte[]
-            byte[] maskedData = Convert.FromBase64String(response.Data);
-            byte[] encryptedMaskBytes = Convert.FromBase64String(response.Mask);
-
-            // Chuyển đổi byte[] thành BigInteger[]
-            int numBlocks = encryptedMaskBytes.Length / blockSize;
-            BigInteger[] encryptedMask = new BigInteger[numBlocks];
-            for (int i = 0; i < numBlocks; i++)
-            {
-                byte[] block = new byte[blockSize];
-                Array.Copy(encryptedMaskBytes, i * blockSize, block, 0, blockSize);
-                encryptedMask[i] = new BigInteger(block);
-            }
-            var privateKey = _rsaKeyService.GetPrivateKey();
-            Console.WriteLine("------------");
-            Console.WriteLine($"npk: {privateKey.n}, dpk: {privateKey.d}");
-
-            // Giải mã mask
-            byte[] decryptedMask = rsa.Decrypt(encryptedMask, privateKey.n, privateKey.d);
-
-            // Đảm bảo độ dài mask bằng với dữ liệu
-            if (decryptedMask.Length > maskedData.Length)
-            {
-                Array.Resize(ref decryptedMask, maskedData.Length);
-            }
-
-            // Giải mã dữ liệu bằng mask (XOR)
-            byte[] originalData = new byte[maskedData.Length];
-            for (int i = 0; i < maskedData.Length; i++)
-            {
-                originalData[i] = (byte)(maskedData[i] ^ decryptedMask[i]);
-            }
-            Console.WriteLine(Encoding.UTF8.GetString(originalData));
-
-            // Chuyển đổi dữ liệu gốc từ byte[] sang string
-            return Encoding.UTF8.GetString(originalData);
-        }
-
-            private async Task AddAuthorizationHeader()
-        {
-            var token = await _js.InvokeAsync<string>("localStorage.getItem", "authToken");
-            if (!string.IsNullOrEmpty(token))
-            {
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            }
         }
 
         public async Task<PagedResponse<ProfileModel>> GetUsersAsync(int page, int pageSize, string searchString)
         {
+            EncryptionService.SetKeys();
             //await AddAuthorizationHeader();
-            var (n, e) = _rsaKeyService.GetPublicKey();
-            var response = await _httpClient.GetAsync($"/api/User?n={n}&e={e}");
+            var response = await _httpClient.GetAsync($"/api/User?n={EncryptionService.publicKeyFE.n}&e={EncryptionService.publicKeyFE.e}");
             response.EnsureSuccessStatusCode();
             // Xử lý response
             var responseContent = await response.Content.ReadAsStringAsync();
@@ -161,15 +55,17 @@ namespace UserManagementFE.Services
             {
                 throw new Exception("Phản hồi từ server không hợp lệ.");
             }
-            string decryptedData = DecryptResponseData(responseObject);
+            string decryptedData = _encryptionService.DecryptResponseData(responseObject);
             Console.WriteLine($"decryptedData: {decryptedData}");
-            List<ProfileModel> listUser = JsonSerializer.Deserialize<List<ProfileModel>>(decryptedData);
+            NewResponse<List<ProfileModel>> newResponse = JsonSerializer.Deserialize<NewResponse<List<ProfileModel>>>(decryptedData);
+            List<ProfileModel> listUser = newResponse.Data;
             return new PagedResponse<ProfileModel> { Items = listUser, TotalCount =  listUser.Count};
   
         }
 
         public async Task<string> CreateUserAsync(ProfileModel user)
         {
+            EncryptionService.SetKeys();
             User newUser = new User
             {
                 Username = user.Username,
@@ -204,14 +100,17 @@ namespace UserManagementFE.Services
             // Chuyển dữ liệu user thành JSON
             var userJson = JsonSerializer.Serialize(newUser, options);
             Console.WriteLine($"userJson: {userJson}");
-            var dataBytes = Encoding.UTF8.GetBytes(userJson);
+            //var dataBytes = Encoding.UTF8.GetBytes(userJson);
 
             // Tạo request object với mã hóa RSA
-            var request = CreateRSARequest(dataBytes, publicKeyBE);
+            byte[] aesKey = _aesKeyService.GetAesKey();
+
+            var request = _encryptionService.CreateRSARequest(aesKey, userJson, publicKeyBE);
             _logger.LogInformation("------------");
-            _logger.LogInformation($"Data: {request.Data}");
-            _logger.LogInformation($"Mask: {request.Mask}");
-            _logger.LogInformation($"PublicKeyFE: {request.PublicKeyFE}");
+            _logger.LogInformation($"DataEncryptedByAes: {request.DataEncryptedByAes}");
+            _logger.LogInformation($"AesKeyMasked: {request.AesKeyMasked}");
+            _logger.LogInformation($"MaskEncryptedByRsa: {request.MaskEncryptedByRsa}");
+            _logger.LogInformation($"ePublicKeyFE: {request.PublicKeyFE.e}, nPK: {request.PublicKeyFE.n}");
 
             // Gửi request đến server
             var response = await _httpClient.PostAsJsonAsync("api/User/register", request);
@@ -224,7 +123,7 @@ namespace UserManagementFE.Services
             {
                 throw new Exception("Phản hồi từ server không hợp lệ.");
             }
-            string decryptedData = DecryptResponseData(responseObject);
+            string decryptedData = _encryptionService.DecryptResponseData(responseObject);
             Console.WriteLine($"decryptedData: {decryptedData}");
 
             // Giải mã và trả về thông báo
@@ -233,6 +132,7 @@ namespace UserManagementFE.Services
 
         public async Task<string> UpdateUserAsync(ProfileModel user)
         {
+            EncryptionService.SetKeys();
             UpdateForAdminModel userWithoutPassword = new UpdateForAdminModel
             {
                 Id = user.Id,
@@ -269,10 +169,17 @@ namespace UserManagementFE.Services
             // Chuyển dữ liệu user thành JSON
             var userJson = JsonSerializer.Serialize(userWithoutPassword, options);
             Console.WriteLine($"userJson: {userJson}");
-            var dataBytes = Encoding.UTF8.GetBytes(userJson);
+            //var dataBytes = Encoding.UTF8.GetBytes(userJson);
 
             // Tạo request object với mã hóa RSA
-            var request = CreateRSARequest(dataBytes, publicKeyBE);
+            byte[] aesKey = _aesKeyService.GetAesKey();
+
+            var request = _encryptionService.CreateRSARequest(aesKey, userJson, publicKeyBE);
+            _logger.LogInformation("------------");
+            _logger.LogInformation($"DataEncryptedByAes: {request.DataEncryptedByAes}");
+            _logger.LogInformation($"AesKeyMasked: {request.AesKeyMasked}");
+            _logger.LogInformation($"MaskEncryptedByRsa: {request.MaskEncryptedByRsa}");
+            _logger.LogInformation($"ePublicKeyFE: {request.PublicKeyFE.e}, nPK: {request.PublicKeyFE.n}");
 
             // Gửi request đến server
             var response = await _httpClient.PutAsJsonAsync($"api/User/{userId}", request);
@@ -285,19 +192,16 @@ namespace UserManagementFE.Services
             {
                 throw new Exception("Phản hồi từ server không hợp lệ.");
             }
-            var decryptedData = DecryptResponseData(responseObject);
+            var decryptedData = _encryptionService.DecryptResponseData(responseObject);
             Console.WriteLine($"new data: {decryptedData}");
             return decryptedData;
         }
 
         public async Task DeleteUserAsync(int userId)
         {
-
+            EncryptionService.SetKeys();
             //await AddAuthorizationHeader();
-            var (n, e) = _rsaKeyService.GetPublicKey();
-            Console.WriteLine($"userId: {userId}");
-            Console.WriteLine($"n: {n}, e: {e}");
-            var response = await _httpClient.DeleteAsync($"api/User/{userId}?n={n}&e={e}");
+            var response = await _httpClient.DeleteAsync($"api/User/{userId}?n={EncryptionService.publicKeyFE.n}&e={EncryptionService.publicKeyFE.e}");
             response.EnsureSuccessStatusCode();
 
             var responseContent = await response.Content.ReadAsStringAsync();
@@ -307,7 +211,7 @@ namespace UserManagementFE.Services
                 throw new Exception("Phản hồi từ server không hợp lệ.");
             }
 
-            var decryptedData = DecryptResponseData(responseObject);
+            var decryptedData = _encryptionService.DecryptResponseData(responseObject);
             Console.WriteLine($"message: {decryptedData}");
         }
     }

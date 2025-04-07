@@ -18,15 +18,16 @@ namespace UserManagementFE.Services
         private readonly RSAKeyService _rsaKeyService;
         private readonly IPublicKeyStore _publicKeyStore;
         private readonly ISessionStorageService _sessionStorage;
+        private EncryptionService _encryptionService;
 
 
-        public AuthService(HttpClient httpClient, ILogger<AuthService> logger, RSAKeyService rsaKeyService, IPublicKeyStore publicKeyStore, ISessionStorageService sessionStorage)
+        public AuthService(HttpClient httpClient, ILogger<AuthService> logger, IPublicKeyStore publicKeyStore, ISessionStorageService sessionStorage, EncryptionService encryptionService, AESKeyService aesKeyService)
         {
             _httpClient = httpClient;
             _logger = logger;
-            _rsaKeyService = rsaKeyService;
             _publicKeyStore = publicKeyStore;
             _sessionStorage = sessionStorage;
+            _encryptionService = encryptionService;
         }
 
         public async Task SaveUserId(int userId)
@@ -34,111 +35,12 @@ namespace UserManagementFE.Services
             await _sessionStorage.SetItemAsync("userId", userId);
         }
 
-        private Request CreateRSARequest(byte[] dataBytes, PublicKey publicKeyBE)
-        {
-            // Tạo mask ngẫu nhiên với độ dài bằng với dữ liệu
-            byte[] mask = new byte[dataBytes.Length];
-            Random.Shared.NextBytes(mask);
 
-            // Mã hóa mask bằng CustomRSA
-            var rsa = new CustomRSA();
-            var (n, e) = (BigInteger.Parse(publicKeyBE.n), BigInteger.Parse(publicKeyBE.e));
-            //BigInteger[] encryptedMaskBigIntegers = rsa.Encrypt(mask, 1047506601960900899, 65537);
-            BigInteger[] encryptedMaskBigIntegers = rsa.Encrypt(mask, n, e);
-
-            // Chuyển đổi BigInteger[] thành byte[]
-            const int blockSize = 8;
-            byte[] encryptedMaskBytes = new byte[encryptedMaskBigIntegers.Length * blockSize];
-            for (int i = 0; i < encryptedMaskBigIntegers.Length; i++)
-            {
-                byte[] bytes = encryptedMaskBigIntegers[i].ToByteArray();
-                if (bytes.Length > blockSize)
-                {
-                    Array.Copy(bytes, 0, encryptedMaskBytes, i * blockSize, blockSize);
-                }
-                else
-                {
-                    Array.Copy(bytes, 0, encryptedMaskBytes, i * blockSize, bytes.Length);
-                }
-            }
-
-            // Mã hóa dữ liệu bằng mask (XOR)
-            byte[] maskedData = new byte[dataBytes.Length];
-            for (int i = 0; i < dataBytes.Length; i++)
-            {
-                maskedData[i] = (byte)(dataBytes[i] ^ mask[i]);
-            }
-
-            // Chuyển đổi sang base64
-            var maskedDataBase64 = Convert.ToBase64String(maskedData);
-            var encryptedMaskBase64 = Convert.ToBase64String(encryptedMaskBytes);
-            var publicKeyFE = _rsaKeyService.GetPublicKey();
-            var privateKey = _rsaKeyService.GetPrivateKey();
-            Console.WriteLine($"n: {publicKeyFE.n}, e: {publicKeyFE.e}");
-            Console.WriteLine("------------");
-            Console.WriteLine($"n: {privateKey.n}, d: {privateKey.d}");
-
-            // Tạo request object
-            return new Request
-            {
-                Data = maskedDataBase64,
-                Mask = encryptedMaskBase64,
-                PublicKeyFE = new PublicKey
-                {
-                    n = publicKeyFE.n.ToString(),
-                    e = publicKeyFE.e.ToString()
-                }
-            };
-        }
-
-        private string DecryptResponseData(Response response)
-        {
-            const int blockSize = 8;
-            var rsa = new CustomRSA();
-            
-            // Chuyển đổi base64 thành byte[]
-            byte[] maskedData = Convert.FromBase64String(response.Data);
-            //byte[] maskedData = Convert.FromBase64String("RPejLCVR6F+pf3y19eDOVwDWSaepTCv05Gi/wzOHJXnJXhTmF8uGBSlkSi5ui74EpwmHuGegwugZswDRDRuOtla7WssuiOtCS6/bPCpSDGiKJAg2hSJ4oY0XHyryYcT0Vh5fr/FsmI2ieK9tN5204osI1kQd4WXHyIcCMsWoAFGD10DQjFDifipsJuJTitDp6b1MAgQldEuHNnMchPxo+Z8b/GA5klZXM0FOrKuNIeNZRt4ObeK/Wvn2vDMktWmER3oG6Z1dPk8Pu6DrFV3fhQYgKiDYGxV8X/VSgA2YhFPfLD17LENOZW4K/lSLv3R3RsapnoV26hGIyi5bgSlznbm5S75UdT0A+Q6rW3XMrbKIyrDthCzKGc6+rR59r1s=");
-            byte[] encryptedMaskBytes = Convert.FromBase64String(response.Mask);
-            //byte[] encryptedMaskBytes = Convert.FromBase64String("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\r\n");
-
-            // Chuyển đổi byte[] thành BigInteger[]
-            int numBlocks = encryptedMaskBytes.Length / blockSize;
-            BigInteger[] encryptedMask = new BigInteger[numBlocks];
-            for (int i = 0; i < numBlocks; i++)
-            {
-                byte[] block = new byte[blockSize];
-                Array.Copy(encryptedMaskBytes, i * blockSize, block, 0, blockSize);
-                encryptedMask[i] = new BigInteger(block);
-            }
-            var privateKey = _rsaKeyService.GetPrivateKey();
-            Console.WriteLine("------------");
-            Console.WriteLine($"npk: {privateKey.n}, dpk: {privateKey.d}");
-
-            // Giải mã mask
-            byte[] decryptedMask = rsa.Decrypt(encryptedMask, privateKey.n, privateKey.d);
-            //byte[] decryptedMask = rsa.Decrypt(encryptedMask, 1047506601960900899, 25046047909419353);
-
-            // Đảm bảo độ dài mask bằng với dữ liệu
-            if (decryptedMask.Length > maskedData.Length)
-            {
-                Array.Resize(ref decryptedMask, maskedData.Length);
-            }
-
-            // Giải mã dữ liệu bằng mask (XOR)
-            byte[] originalData = new byte[maskedData.Length];
-            for (int i = 0; i < maskedData.Length; i++)
-            {
-                originalData[i] = (byte)(maskedData[i] ^ decryptedMask[i]);
-            }
-            Console.WriteLine(Encoding.UTF8.GetString(originalData));
-
-            // Chuyển đổi dữ liệu gốc từ byte[] sang string
-            return Encoding.UTF8.GetString(originalData);
-        }
 
         public async Task<string> LoginAsync(LoginModel user)
         {
+            EncryptionService.SetKeys();
+            CustomAES aes = new CustomAES();
             // Lấy public key từ backend
             var publicKeyJson = await _publicKeyStore.GetPublicKeyAsync();
             var publicKeyBE = JsonSerializer.Deserialize<PublicKey>(publicKeyJson);
@@ -146,6 +48,12 @@ namespace UserManagementFE.Services
             {
                 throw new Exception("Không thể lấy public key từ server.");
             }
+            Console.WriteLine("npublicKeyBE: " + publicKeyBE.n + " epublicKeyBE: " + publicKeyBE.e);
+            //var publicKeyBE = new PublicKey
+            //{
+            //    n = EncryptionService.publicKeyFE.n,
+            //    e = EncryptionService.publicKeyFE.e
+            //};
 
             var options = new JsonSerializerOptions
             {
@@ -154,20 +62,29 @@ namespace UserManagementFE.Services
 
             // Chuyển dữ liệu user thành JSON
             var userJson = JsonSerializer.Serialize(user, options);
-            var dataBytes = Encoding.UTF8.GetBytes(userJson);
+            Console.WriteLine($"userJson: {userJson}");
+            //var dataBytes = Encoding.UTF8.GetBytes(userJson);
 
             // Tạo request object với mã hóa RSA
-            var request = CreateRSARequest(dataBytes, publicKeyBE);
-            _logger.LogInformation("------------");
-            _logger.LogInformation($"Data: {request.Data}");
-            _logger.LogInformation($"Mask: {request.Mask}");
-            _logger.LogInformation($"ePublicKeyFE: {request.PublicKeyFE.e}, nPK: {request.PublicKeyFE.n}");
+            byte[] aesKey = aes.GenerateAesKey();
+
+            var request = _encryptionService.CreateRSARequest(aesKey, userJson, publicKeyBE);
+            Console.WriteLine("------------");
+            Console.WriteLine($"DataEncryptedByAes: {request.DataEncryptedByAes}");
+            Console.WriteLine($"AesKeyMasked: {request.AesKeyMasked}");
+            Console.WriteLine($"MaskEncryptedByRsa: {request.MaskEncryptedByRsa}");
+            Console.WriteLine($"ePublicKeyFE: {request.PublicKeyFE.e}, nPK: {request.PublicKeyFE.n}");
 
 
             // Gửi request đến server
             var response = await _httpClient.PostAsJsonAsync("api/User/login", request);
             response.EnsureSuccessStatusCode();
 
+            //Response responseObject = new Response {
+            //    DataEncryptedbyAes = request.DataEncryptedByAes,
+            //    AesKeyMasked = request.AesKeyMasked,
+            //    MaskEncryptedByRsa = request.MaskEncryptedByRsa,
+            //};
             // Xử lý response
             var responseContent = await response.Content.ReadAsStringAsync();
             var responseObject = JsonSerializer.Deserialize<Response>(responseContent);
@@ -175,18 +92,22 @@ namespace UserManagementFE.Services
             {
                 throw new Exception("Phản hồi từ server không hợp lệ.");
             }
-            string decryptedData = DecryptResponseData(responseObject);
-            var responseObj = JsonSerializer.Deserialize<LoginResponse>(decryptedData);
-            int userId = responseObj.User.Id;
+            string decryptedData = _encryptionService.DecryptResponseData(responseObject);
+            NewResponse<ProfileModel> newResponse = JsonSerializer.Deserialize<NewResponse<ProfileModel>>(decryptedData);
+            Console.WriteLine($"new Response: {newResponse}");
+
+            ProfileModel loginResponse = newResponse.Data;
+            int userId = loginResponse.Id;
             await SaveUserId(userId);
             Console.WriteLine($"decryptedData: {decryptedData}");
 
-            // Giải mã và trả về token
-            return responseObj.User.Role;
+            return loginResponse.Role;
         }
 
         public async Task<string> RegisterAsync(User user)
         {
+            EncryptionService.SetKeys();
+            CustomAES aes = new CustomAES();
             // Lấy public key từ backend
             var publicKeyJson = await _publicKeyStore.GetPublicKeyAsync();
             var publicKeyBE = JsonSerializer.Deserialize<PublicKey>(publicKeyJson);
@@ -202,14 +123,18 @@ namespace UserManagementFE.Services
 
             // Chuyển dữ liệu user thành JSON
             var userJson = JsonSerializer.Serialize(user, options);
-            var dataBytes = Encoding.UTF8.GetBytes(userJson);
+            //var dataBytes = Encoding.UTF8.GetBytes(userJson);
 
             // Tạo request object với mã hóa RSA
-            var request = CreateRSARequest(dataBytes, publicKeyBE);
+            // Tạo request object với mã hóa RSA
+            byte[] aesKey = aes.GenerateAesKey();
+
+            var request = _encryptionService.CreateRSARequest(aesKey, userJson, publicKeyBE);
             _logger.LogInformation("------------");
-            _logger.LogInformation($"Data: {request.Data}");
-            _logger.LogInformation($"Mask: {request.Mask}");
-            _logger.LogInformation($"PublicKeyFE: {request.PublicKeyFE}");
+            _logger.LogInformation($"DataEncryptedByAes: {request.DataEncryptedByAes}");
+            _logger.LogInformation($"AesKeyMasked: {request.AesKeyMasked}");
+            _logger.LogInformation($"MaskEncryptedByRsa: {request.MaskEncryptedByRsa}");
+            _logger.LogInformation($"ePublicKeyFE: {request.PublicKeyFE.e}, nPK: {request.PublicKeyFE.n}");
 
             // Gửi request đến server
             var response = await _httpClient.PostAsJsonAsync("api/User/register", request);
@@ -222,7 +147,7 @@ namespace UserManagementFE.Services
             {
                 throw new Exception("Phản hồi từ server không hợp lệ.");
             }
-            string decryptedData = DecryptResponseData(responseObject);
+            string decryptedData = _encryptionService.DecryptResponseData(responseObject);
             Console.WriteLine($"decryptedData: {decryptedData}");
 
             // Giải mã và trả về thông báo

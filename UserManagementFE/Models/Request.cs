@@ -2,8 +2,9 @@
 {
     public class Request
     {
-        public string Data { get; set; } = string.Empty;
-        public string Mask { get; set; } = string.Empty;
+        public string DataEncryptedByAes { get; set; } = string.Empty;
+        public string AesKeyMasked { get; set; } = string.Empty;
+        public string MaskEncryptedByRsa { get; set; } = string.Empty;
         public PublicKey PublicKeyFE { get; set; } = new PublicKey();
     }
 }

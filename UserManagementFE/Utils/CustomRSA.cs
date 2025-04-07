@@ -10,7 +10,7 @@ namespace UserManagementFE.Utils
         private BigInteger e;
         private BigInteger d;
 
-        public CustomRSA(int bitLength = 64)
+        public CustomRSA(int bitLength = 128)
         {
             GenerateKeys(bitLength);
         }

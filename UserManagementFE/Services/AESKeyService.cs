@@ -14,12 +14,12 @@ namespace UserManagementFE.Services
         }
         public byte[] GetAesKey()
         {
+            _keyAes = _aes.GenerateAesKey();
             return _keyAes;
         }
         public void GenerateNewKeys()
         {
             _aes = new CustomAES();
-            _keyAes = _aes.GenerateAesKey();
         }
     }
 }
